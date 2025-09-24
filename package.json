@@ -23,7 +23,9 @@
     "react-native-safe-area-context": "~5.6.0",
     "react-native-screens": "~4.16.0",
     "react-native-vector-icons": "^10.3.0",
-    "undefined": "react-native-vector-icons/FontAwesome@latest"
+    "undefined": "react-native-vector-icons/FontAwesome@latest",
+    "expo-asset": "~12.0.9",
+    "expo-font": "~14.0.8"
   },
   "private": true
 }
