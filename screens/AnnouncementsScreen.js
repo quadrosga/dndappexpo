@@ -9,16 +9,38 @@ import {
   FlatList,
   Image,
   Alert,
+  Modal,
+  TextInput,
 } from "react-native";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import { announcementService } from "../announcementService";
+import { authService } from "../authService";
 
 const AnnouncementsScreen = ({ navigation }) => {
   const [announcements, setAnnouncements] = useState([]);
+  const [userRole, setUserRole] = useState("player");
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newAnnouncement, setNewAnnouncement] = useState({
+    title: "",
+    content: "",
+    important: false,
+  });
 
   useEffect(() => {
+    loadUserRole();
     initializeAnnouncements();
   }, []);
+
+  const loadUserRole = async () => {
+    try {
+      const currentUser = await authService.getCurrentUserWithRole();
+      if (currentUser && currentUser.role) {
+        setUserRole(currentUser.role);
+      }
+    } catch (error) {
+      console.error("Error loading user role:", error);
+    }
+  };
 
   const initializeAnnouncements = async () => {
     await announcementService.initializeDemoAnnouncements();
@@ -39,36 +61,75 @@ const AnnouncementsScreen = ({ navigation }) => {
     }
   };
 
-  const handleAddAnnouncement = async () => {
-    // For now, let's add a sample announcement
-    // Later you can create a proper form
-    const newAnnouncement = {
-      title: "Novo Aviso de Teste",
-      content: "Este é um aviso adicionado através do app!",
-      author: "Sistema",
-      date: new Date().toISOString().split("T")[0], // Today's date
-      time: new Date().toLocaleTimeString("pt-BR", {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-      important: false,
-    };
-
-    const addedAnnouncement = await announcementService.addAnnouncement(
-      newAnnouncement
-    );
-    if (addedAnnouncement) {
-      Alert.alert("Sucesso", "Aviso adicionado com sucesso!");
-      loadAnnouncements(); // Refresh the list
-    } else {
-      Alert.alert("Erro", "Não foi possível adicionar o aviso.");
+  const handleCreateAnnouncement = async () => {
+    if (!newAnnouncement.title || !newAnnouncement.content) {
+      Alert.alert("Erro", "Por favor, preencha título e conteúdo.");
+      return;
     }
+
+    try {
+      const currentUser = await authService.getCurrentUserWithRole();
+      const announcementToCreate = {
+        ...newAnnouncement,
+        author: currentUser ? currentUser.name : "Sistema",
+        date: new Date().toISOString().split("T")[0],
+        time: new Date().toLocaleTimeString("pt-BR", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      };
+
+      const addedAnnouncement = await announcementService.addAnnouncement(
+        announcementToCreate
+      );
+      if (addedAnnouncement) {
+        Alert.alert("Sucesso", "Aviso criado com sucesso!");
+        setShowCreateModal(false);
+        setNewAnnouncement({ title: "", content: "", important: false });
+        loadAnnouncements();
+      }
+    } catch (error) {
+      Alert.alert("Erro", "Não foi possível criar o aviso.");
+    }
+  };
+
+  const handleDeleteAnnouncement = (announcementId) => {
+    Alert.alert("Excluir Aviso", "Tem certeza que deseja excluir este aviso?", [
+      { text: "Cancelar", style: "cancel" },
+      {
+        text: "Excluir",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            const success = await announcementService.deleteAnnouncement(
+              announcementId
+            );
+            if (success) {
+              Alert.alert("Sucesso", "Aviso excluído com sucesso!");
+              loadAnnouncements();
+            }
+          } catch (error) {
+            Alert.alert("Erro", "Não foi possível excluir o aviso.");
+          }
+        },
+      },
+    ]);
   };
 
   const renderAnnouncementItem = ({ item }) => (
     <View
       style={[styles.announcementCard, item.important && styles.importantCard]}
     >
+      {/* ADD DELETE BUTTON FOR DMs */}
+      {userRole === "dm" && (
+        <TouchableOpacity
+          style={styles.deleteButton}
+          onPress={() => handleDeleteAnnouncement(item.id)}
+        >
+          <MaterialIcons name="delete" size={20} color="#ef4444" />
+        </TouchableOpacity>
+      )}
+
       {item.important && (
         <View style={styles.importantBadge}>
           <MaterialIcons name="priority-high" size={16} color="white" />
@@ -111,12 +172,17 @@ const AnnouncementsScreen = ({ navigation }) => {
           <MaterialIcons name="arrow-back" size={24} color="#7c3aed" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Mural de Avisos</Text>
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={handleAddAnnouncement}
-        >
-          <MaterialIcons name="add" size={20} color="#7c3aed" />
-        </TouchableOpacity>
+
+        {userRole === "dm" ? (
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={() => setShowCreateModal(true)}
+          >
+            <MaterialIcons name="add" size={20} color="#7c3aed" />
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.headerRight} />
+        )}
       </View>
 
       {/* Lista de Avisos */}
@@ -127,6 +193,92 @@ const AnnouncementsScreen = ({ navigation }) => {
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
       />
+
+      {/* ADD CREATE ANNOUNCEMENT MODAL */}
+      <Modal
+        visible={showCreateModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowCreateModal(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Novo Aviso</Text>
+              <TouchableOpacity onPress={() => setShowCreateModal(false)}>
+                <MaterialIcons name="close" size={24} color="#64748b" />
+              </TouchableOpacity>
+            </View>
+
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Título do aviso"
+              value={newAnnouncement.title}
+              onChangeText={(text) =>
+                setNewAnnouncement({ ...newAnnouncement, title: text })
+              }
+            />
+
+            <TextInput
+              style={[styles.modalInput, styles.modalTextArea]}
+              placeholder="Conteúdo do aviso"
+              value={newAnnouncement.content}
+              onChangeText={(text) =>
+                setNewAnnouncement({ ...newAnnouncement, content: text })
+              }
+              multiline
+              numberOfLines={4}
+            />
+
+            <TouchableOpacity
+              style={styles.importantToggle}
+              onPress={() =>
+                setNewAnnouncement({
+                  ...newAnnouncement,
+                  important: !newAnnouncement.important,
+                })
+              }
+            >
+              <View style={styles.checkboxContainer}>
+                <View
+                  style={[
+                    styles.checkbox,
+                    newAnnouncement.important && styles.checkboxChecked,
+                  ]}
+                >
+                  {newAnnouncement.important && (
+                    <MaterialIcons name="check" size={14} color="white" />
+                  )}
+                </View>
+                <Text style={styles.importantLabel}>
+                  Marcar como importante
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => setShowCreateModal(false)}
+              >
+                <Text style={styles.cancelButtonText}>Cancelar</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.createButton,
+                  (!newAnnouncement.title || !newAnnouncement.content) &&
+                    styles.createButtonDisabled,
+                ]}
+                onPress={handleCreateAnnouncement}
+                disabled={!newAnnouncement.title || !newAnnouncement.content}
+              >
+                <Text style={styles.createButtonText}>Criar Aviso</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Footer Navigation */}
       <View style={styles.footerNav}>
@@ -180,6 +332,9 @@ const styles = StyleSheet.create({
   addButton: {
     padding: 8,
   },
+  headerRight: {
+    width: 40,
+  },
   listContent: {
     padding: 16,
     paddingBottom: 80,
@@ -201,6 +356,14 @@ const styles = StyleSheet.create({
   importantCard: {
     borderLeftWidth: 4,
     borderLeftColor: "#7c3aed",
+  },
+  // ADD DELETE BUTTON STYLE
+  deleteButton: {
+    position: "absolute",
+    top: 16,
+    right: 16,
+    padding: 4,
+    zIndex: 1,
   },
   importantBadge: {
     flexDirection: "row",
@@ -260,6 +423,100 @@ const styles = StyleSheet.create({
   timeText: {
     fontSize: 12,
     color: "#94a3b8",
+  },
+  // MODAL STYLES
+  modalContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+  modalContent: {
+    backgroundColor: "white",
+    borderRadius: 16,
+    padding: 24,
+    width: "90%",
+    maxWidth: 400,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#1e293b",
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    marginBottom: 16,
+    backgroundColor: "#f9fafb",
+  },
+  modalTextArea: {
+    height: 100,
+    textAlignVertical: "top",
+  },
+  importantToggle: {
+    marginBottom: 24,
+  },
+  checkboxContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderWidth: 2,
+    borderColor: "#7c3aed",
+    borderRadius: 4,
+    marginRight: 8,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  checkboxChecked: {
+    backgroundColor: "#7c3aed",
+  },
+  importantLabel: {
+    fontSize: 16,
+    color: "#374151",
+  },
+  modalButtons: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  cancelButton: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+    alignItems: "center",
+  },
+  cancelButtonText: {
+    color: "#374151",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  createButton: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 8,
+    backgroundColor: "#7c3aed",
+    alignItems: "center",
+  },
+  createButtonDisabled: {
+    backgroundColor: "#cbd5e1",
+  },
+  createButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "600",
   },
   footerNav: {
     flexDirection: "row",
