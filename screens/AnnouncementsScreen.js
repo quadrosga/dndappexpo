@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -8,42 +8,62 @@ import {
   StatusBar,
   FlatList,
   Image,
+  Alert,
 } from "react-native";
-import Icon from "react-native-vector-icons/FontAwesome";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
+import { announcementService } from "../announcementService";
 
 const AnnouncementsScreen = ({ navigation }) => {
-  const [announcements, setAnnouncements] = useState([
-    {
-      id: "1",
-      title: "Nova Campanha Iniciando!",
-      content:
-        "Estamos começando uma nova campanha na próxima semana. Todas as jogadoras estão convidadas!",
-      author: "Ana (DM)",
-      date: "2024-06-10",
-      time: "14:30",
-      important: true,
-    },
-    {
-      id: "2",
-      title: "Mudança de Horário",
-      content: "A sessão de sábado será das 15h às 18h em vez das 14h às 17h.",
-      author: "Carla",
-      date: "2024-06-08",
-      time: "09:15",
+  const [announcements, setAnnouncements] = useState([]);
+
+  useEffect(() => {
+    initializeAnnouncements();
+  }, []);
+
+  const initializeAnnouncements = async () => {
+    await announcementService.initializeDemoAnnouncements();
+    loadAnnouncements();
+  };
+
+  const loadAnnouncements = async () => {
+    try {
+      const announcementsData = await announcementService.getAnnouncements();
+      // Sort by date (newest first)
+      const sortedAnnouncements = announcementsData.sort(
+        (a, b) =>
+          new Date(b.date + "T" + b.time) - new Date(a.date + "T" + a.time)
+      );
+      setAnnouncements(sortedAnnouncements);
+    } catch (error) {
+      console.error("Error loading announcements:", error);
+    }
+  };
+
+  const handleAddAnnouncement = async () => {
+    // For now, let's add a sample announcement
+    // Later you can create a proper form
+    const newAnnouncement = {
+      title: "Novo Aviso de Teste",
+      content: "Este é um aviso adicionado através do app!",
+      author: "Sistema",
+      date: new Date().toISOString().split("T")[0], // Today's date
+      time: new Date().toLocaleTimeString("pt-BR", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
       important: false,
-    },
-    {
-      id: "3",
-      title: "Material para Próxima Sessão",
-      content:
-        "Por favor, leiam o capítulo 3 do livro de regras antes da próxima sessão.",
-      author: "Beatriz (DM)",
-      date: "2024-06-05",
-      time: "19:45",
-      important: true,
-    },
-  ]);
+    };
+
+    const addedAnnouncement = await announcementService.addAnnouncement(
+      newAnnouncement
+    );
+    if (addedAnnouncement) {
+      Alert.alert("Sucesso", "Aviso adicionado com sucesso!");
+      loadAnnouncements(); // Refresh the list
+    } else {
+      Alert.alert("Erro", "Não foi possível adicionar o aviso.");
+    }
+  };
 
   const renderAnnouncementItem = ({ item }) => (
     <View
@@ -91,7 +111,10 @@ const AnnouncementsScreen = ({ navigation }) => {
           <MaterialIcons name="arrow-back" size={24} color="#7c3aed" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Mural de Avisos</Text>
-        <TouchableOpacity style={styles.addButton}>
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={handleAddAnnouncement}
+        >
           <MaterialIcons name="add" size={20} color="#7c3aed" />
         </TouchableOpacity>
       </View>

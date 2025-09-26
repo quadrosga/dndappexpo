@@ -9,6 +9,7 @@ import {
   StatusBar,
   Image,
 } from "react-native";
+import { sessionService } from "../sessionService";
 import Icon from "react-native-vector-icons/FontAwesome";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -17,47 +18,15 @@ const HomeScreen = ({ navigation }) => {
   const [sessions, setSessions] = useState([]);
   const [userName, setUserName] = useState("");
 
-  // Dados mockados - substituir pela lógica real depois
-  const mockSessions = [
-    {
-      id: "1",
-      title: "Sessão da Campanha Principal",
-      date: "2024-06-15",
-      time: "19:00",
-      dungeonMaster: "Ana",
-      status: "pending",
-      confirmedPlayers: 3,
-      totalPlayers: 5,
-      location: "Discord - Sala Dragões",
-    },
-    {
-      id: "2",
-      title: "One-shot: A Masmorra Esquecida",
-      date: "2024-06-22",
-      time: "14:00",
-      dungeonMaster: "Carla",
-      status: "confirmed",
-      confirmedPlayers: 4,
-      totalPlayers: 4,
-      location: "Roll20",
-    },
-    {
-      id: "3",
-      title: "Sessão de Continuação",
-      date: "2024-06-29",
-      time: "20:00",
-      dungeonMaster: "Beatriz",
-      status: "pending",
-      confirmedPlayers: 2,
-      totalPlayers: 6,
-      location: "Discord - Sala Principal",
-    },
-  ];
-
   useEffect(() => {
     loadUserData();
-    loadSessions();
+    initializeSessions();
   }, []);
+
+  const initializeSessions = async () => {
+    await sessionService.initializeDemoSessions();
+    loadSessions();
+  };
 
   const loadUserData = async () => {
     try {
@@ -71,8 +40,30 @@ const HomeScreen = ({ navigation }) => {
   };
 
   const loadSessions = async () => {
-    // Simulação de carregamento de dados
-    setSessions(mockSessions);
+    try {
+      const sessions = await sessionService.getSessions();
+      const confirmations = await sessionService.getUserConfirmations();
+
+      // Enhance sessions with confirmation data
+      const sessionsWithConfirmations = sessions.map((session) => {
+        const sessionConfirmations = Object.values(confirmations).filter(
+          (conf) => conf.sessionId === session.id
+        );
+        const confirmedPlayers = sessionConfirmations.filter(
+          (conf) => conf.status === "confirmed"
+        ).length;
+
+        return {
+          ...session,
+          confirmedPlayers,
+          status: confirmedPlayers > 0 ? "confirmed" : "pending", // Simple logic for now
+        };
+      });
+
+      setSessions(sessionsWithConfirmations);
+    } catch (error) {
+      console.error("Error loading sessions:", error);
+    }
   };
 
   const renderSessionItem = ({ item }) => (

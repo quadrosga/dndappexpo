@@ -11,20 +11,33 @@ import {
 } from "react-native";
 import Icon from "react-native-vector-icons/FontAwesome";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
+import { sessionService } from "../sessionService";
 
 const SessionDetailsScreen = ({ navigation, route }) => {
   const { session } = route.params;
   const [userStatus, setUserStatus] = useState(null);
 
-  const handleConfirmation = (status) => {
-    setUserStatus(status);
-    Alert.alert(
-      status === "confirmed" ? "Presença Confirmada!" : "Presença Negada",
-      status === "confirmed"
-        ? "Você confirmou presença na sessão!"
-        : "Você informou que não poderá comparecer.",
-      [{ text: "OK" }]
-    );
+  const handleConfirmation = async (status) => {
+    try {
+      const success = await sessionService.confirmSession(
+        session.id,
+        userName,
+        status
+      );
+      if (success) {
+        setUserStatus(status);
+        Alert.alert(
+          status === "confirmed" ? "Presença Confirmada!" : "Presença Negada",
+          status === "confirmed"
+            ? "Você confirmou presença na sessão!"
+            : "Você informou que não poderá comparecer.",
+          [{ text: "OK" }]
+        );
+        // Optional: Refresh data or navigate back
+      }
+    } catch (error) {
+      Alert.alert("Erro", "Não foi possível confirmar sua presença.");
+    }
   };
 
   const getPlayersList = () => {
