@@ -143,7 +143,10 @@ const AnnouncementsScreen = ({ navigation }) => {
           <Text style={styles.navButtonTextActive}>Avisos</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.navButton}>
+        <TouchableOpacity
+          style={styles.navButton}
+          onPress={() => navigation.navigate("Settings")}
+        >
           <MaterialIcons name="settings" size={24} color="#666" />
           <Text style={styles.navButtonText}>Config</Text>
         </TouchableOpacity>

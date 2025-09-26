@@ -5,6 +5,8 @@ import LoginScreen from "./screens/LoginScreen";
 import HomeScreen from "./screens/HomeScreen";
 import SessionDetailsScreen from "./screens/SessionDetailsScreen";
 import AnnouncementsScreen from "./screens/AnnouncementsScreen";
+import SettingsScreen from "./screens/SettingsScreen";
+import CreateSessionScreen from "./screens/CreateSessionScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -30,6 +32,16 @@ const App = () => {
         <Stack.Screen
           name="Announcements"
           component={AnnouncementsScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="CreateSession"
+          component={CreateSessionScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="Settings"
+          component={SettingsScreen}
           options={{ headerShown: false }}
         />
       </Stack.Navigator>

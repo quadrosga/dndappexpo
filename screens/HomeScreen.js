@@ -13,10 +13,12 @@ import { sessionService } from "../sessionService";
 import Icon from "react-native-vector-icons/FontAwesome";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { authService } from "../authService";
 
 const HomeScreen = ({ navigation }) => {
   const [sessions, setSessions] = useState([]);
   const [userName, setUserName] = useState("");
+  const [userRole, setUserRole] = useState("player");
 
   useEffect(() => {
     loadUserData();
@@ -30,9 +32,19 @@ const HomeScreen = ({ navigation }) => {
 
   const loadUserData = async () => {
     try {
-      const savedUsername = await AsyncStorage.getItem("savedUsername");
-      if (savedUsername) {
-        setUserName(savedUsername);
+      // Load the complete user object instead of just username
+      const savedUserJson = await AsyncStorage.getItem("savedUser");
+      if (savedUserJson) {
+        const savedUser = JSON.parse(savedUserJson);
+        setUserName(savedUser.name);
+        setUserRole(savedUser.role || "player"); // Use the role from stored user
+      } else {
+        // Fallback: try to get current user from authService
+        const currentUser = await authService.getCurrentUserWithRole();
+        if (currentUser) {
+          setUserName(currentUser.name);
+          setUserRole(currentUser.role || "player");
+        }
       }
     } catch (error) {
       console.log("Erro ao carregar dados do usuário:", error);
@@ -143,12 +155,27 @@ const HomeScreen = ({ navigation }) => {
           />
           <View>
             <Text style={styles.welcomeText}>Olá, {userName}!</Text>
-            <Text style={styles.subtitle}>Próximas sessões</Text>
+            <Text style={styles.subtitle}>
+              {userRole === "dm" ? "Dungeon Master" : "Jogadora"}
+            </Text>
           </View>
         </View>
-        <TouchableOpacity style={styles.notificationButton}>
-          <MaterialIcons name="notifications" size={24} color="#7c3aed" />
-        </TouchableOpacity>
+
+        {/* Conditional Button Rendering */}
+        {userRole === "dm" ? (
+          // DM sees "Add Session" button
+          <TouchableOpacity
+            style={styles.headerButton}
+            onPress={() => navigation.navigate("CreateSession")}
+          >
+            <MaterialIcons name="add" size={24} color="#7c3aed" />
+          </TouchableOpacity>
+        ) : (
+          // Players see notification button
+          <TouchableOpacity style={styles.headerButton}>
+            <MaterialIcons name="notifications" size={24} color="#7c3aed" />
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Lista de Sessões */}
@@ -175,7 +202,10 @@ const HomeScreen = ({ navigation }) => {
           <Text style={styles.navButtonText}>Avisos</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.navButton}>
+        <TouchableOpacity
+          style={styles.navButton}
+          onPress={() => navigation.navigate("Settings")}
+        >
           <MaterialIcons name="settings" size={24} color="#666" />
           <Text style={styles.navButtonText}>Config</Text>
         </TouchableOpacity>
@@ -217,7 +247,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#64748b",
   },
-  notificationButton: {
+  headerButton: {
     padding: 8,
   },
   listContent: {

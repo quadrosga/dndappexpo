@@ -60,6 +60,23 @@ export const sessionService = {
     }
   },
 
+  // Add session for DM
+  async addSession(session) {
+    try {
+      const sessions = await this.getSessions();
+      const newSession = {
+        ...session,
+        id: Date.now().toString(), // Simple ID generation
+      };
+      sessions.push(newSession);
+      await this.saveSessions(sessions);
+      return true;
+    } catch (error) {
+      console.error("Error adding session:", error);
+      return false;
+    }
+  },
+
   // Initialize with demo data if no sessions exist
   async initializeDemoSessions() {
     const existingSessions = await this.getSessions();

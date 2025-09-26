@@ -16,6 +16,7 @@ import Icon from "react-native-vector-icons/FontAwesome";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { authService } from "../authService";
 
 const LoginScreen = ({ navigation }) => {
   const [username, setUsername] = useState("");
@@ -30,17 +31,18 @@ const LoginScreen = ({ navigation }) => {
     }
 
     try {
-      // Simulação de login
+      // Use authService login instead of simulation
+      const user = await authService.login(username, password);
+
       if (rememberMe) {
-        await AsyncStorage.setItem("savedUsername", username);
+        // Store the complete user object, not just the username
+        await AsyncStorage.setItem("savedUser", JSON.stringify(user));
       } else {
-        await AsyncStorage.removeItem("savedUsername");
+        await AsyncStorage.removeItem("savedUser");
       }
 
-      //
-      // Por enquanto, vou simular um login bem-sucedido
-      alert(`Bem-vinda, ${username}! Login realizado com sucesso.`);
-      navigation.navigate("Home"); // Navega para a tela principal
+      alert(`Bem-vinda, ${user.name}! Login realizado com sucesso.`);
+      navigation.navigate("Home");
     } catch (error) {
       alert("Erro ao fazer login: " + error.message);
     }
@@ -50,9 +52,10 @@ const LoginScreen = ({ navigation }) => {
   React.useEffect(() => {
     const loadSavedUsername = async () => {
       try {
-        const savedUsername = await AsyncStorage.getItem("savedUsername");
-        if (savedUsername) {
-          setUsername(savedUsername);
+        const savedUsername = await AsyncStorage.getItem("savedUser");
+        if (savedUserJson) {
+          const savedUser = JSON.parse(savedUserJson);
+          setUsername(savedUser.email); // Use email instead of name for login
           setRememberMe(true);
         }
       } catch (error) {
